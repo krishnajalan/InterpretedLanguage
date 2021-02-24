@@ -59,6 +59,9 @@ class Number:
         if isinstance(other, Number):
             return Number(self.value ** other.value).setContext(self.context), None
 
+    def copy(self):
+        return Number(self.value).setContext(self.context)
+
     def dividedBy(self, other):
         if isinstance(other, Number):
             if other.value == 0:

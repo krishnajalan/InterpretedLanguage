@@ -1,6 +1,7 @@
 from .errors import *
 from .tokens import *
 import string
+
 ##################################
 # CONSTANTS
 ##################################
@@ -22,10 +23,10 @@ class Position:
         self.fn = fileName
         self.ftxt = fileText
 
-    def advance(self, current_char=None):
+    def advance(self, currentChar=None):
         self.idx += 1
         self.col += 1
-        if current_char == '\n':
+        if currentChar == '\n':
             self.ln += 1
             self.col = 0
         return self
@@ -44,53 +45,66 @@ class Lexer:
         self.fn = fileName
         self.text = text
         self.pos = Position(-1, 0, -1, fileName, text)
-        self.current_char = None
+        self.currentChar = None
         self.advance()
 
     def advance(self):
-        self.pos.advance(self.current_char)
-        self.current_char = self.text[self.pos.idx] if self.pos.idx < len(
+        self.pos.advance(self.currentChar)
+        self.currentChar = self.text[self.pos.idx] if self.pos.idx < len(
             self.text) else None
 
     def make_token(self):
         tokens = []
 
-        while self.current_char != None:
-            if self.current_char in '\t ':
+        while self.currentChar != None:
+            if self.currentChar in '\t ':
                 self.advance()
-            elif self.current_char in DIGITS:
+            elif self.currentChar in DIGITS:
                 tokens.append(self.makeNumber())
-            elif self.current_char in LETTERS:
+            elif self.currentChar in LETTERS:
                 tokens.append(self.makeIdentifier())
-            elif self.current_char == '+':
+            elif self.currentChar == '+':
                 tokens.append(Token(TT_PLUS, startPos=self.pos))
                 self.advance()
-            elif self.current_char == '-':
+            elif self.currentChar == '-':
                 tokens.append(Token(TT_MINUS, startPos=self.pos))
                 self.advance()
-            elif self.current_char == '*':
+            elif self.currentChar == '*':
                 tokens.append(Token(TT_MUL, startPos=self.pos))
                 self.advance()
-            elif self.current_char == '/':
+            elif self.currentChar == '/':
                 tokens.append(Token(TT_DIV, startPos=self.pos))
                 self.advance()
-            elif self.current_char == '^':
+            elif self.currentChar == '^':
                 tokens.append(Token(TT_POW, startPos=self.pos))
                 self.advance()
-            elif self.current_char == '=':
-                tokens.append(Token(TT_EQ, startPos=self.pos))
-                self.advance()    
-            elif self.current_char == '(':
+            elif self.currentChar == '=':
+                tok, error = self.makeEquals()
+                if error: return [], error
+                tokens.append(tok)
+            elif self.currentChar == '!':
+                tok, error = self.makeNotEquals()
+                if error: return [], error
+                tokens.append(tok)
+            elif self.currentChar == '>':
+                tok, error = self.makeGreaterThan()
+                if error: return [], error
+                tokens.append(tok)
+            elif self.currentChar == '<':
+                tok, error = self.makeLessThan()
+                if error: return [], error
+                tokens.append(tok)
+            elif self.currentChar == '(':
                 tokens.append(Token(TT_LPAREN, startPos=self.pos))
                 self.advance()
-            elif self.current_char == ')':
+            elif self.currentChar == ')':
                 tokens.append(Token(TT_RPAREN, startPos=self.pos))
                 self.advance()
             else:
-                posStart = self.pos.copy()
-                character = self.current_char
+                startPos = self.pos.copy()
+                character = self.currentChar
                 self.advance()
-                return [], IllegalCharacterError(posStart, self.pos, "'"+character+"'")
+                return [], IllegalCharacterError(startPos, self.pos, "'"+character+"'")
 
         tokens.append(Token(TT_EOF, startPos=self.pos))
         return tokens, None
@@ -100,14 +114,14 @@ class Lexer:
         dotCount = 0
         startPos = self.pos.copy()
 
-        while self.current_char != None and self.current_char in DIGITS + ".":
-            if self.current_char == '.':
+        while self.currentChar != None and self.currentChar in DIGITS + ".":
+            if self.currentChar == '.':
                 if dotCount == 1:
                     break
                 dotCount += 1
                 num += '.'
             else:
-                num += self.current_char
+                num += self.currentChar
             self.advance()
 
         if dotCount == 0:
@@ -119,9 +133,54 @@ class Lexer:
         id = ''
         startPos = self.pos.copy()
 
-        while self.current_char != None and self.current_char in LETTERS_DIGITS:
-            id += self.current_char
+        while self.currentChar != None and self.currentChar in LETTERS_DIGITS:
+            id += self.currentChar
             self.advance()
         
         tokType = TT_KEYWORD if id in KEYWORDS else TT_IDENTIFIER
         return Token(tokType, id, startPos, self.pos)
+
+    def makeEquals(self):
+        tokType = TT_EQ
+        startPos = self.pos.copy()
+        self.advance()
+
+        if self.currentChar == '=':
+            self.advance()
+            tokType = TT_EE
+
+        print("debug again:", tokType)
+        return  Token(tokType, startPos=startPos, endPos=self.pos), None
+    
+    def makeNotEquals(self):
+        startPos = self.pos.copy()
+        self.advance()
+
+        if self.currentChar == '=':
+            self.advance()
+            return Token(TT_NE, startPos=startPos, endPos=self.pos), None
+        
+        self.advance()
+        return None, ExpectedCharError(startPos, self.pos, "'=' (after '!')")
+
+    def makeGreaterThan(self):
+        tokType = TT_GT
+        startPos = self.pos.copy()
+        self.advance()
+
+        if self.currentChar == '=':
+            self.advance()
+            tokType = TT_GTE
+        
+        return Token(tokType, startPos=startPos, endPos=self.pos)
+
+    def makeLessThan(self):
+        tokType = TT_LT
+        posStart = self.pos.copy()
+        self.advance()
+
+        if self.currentChar == '=':
+            self.advance()
+            tokType = TT_LTE
+        
+        return Token(tokType, startPos=posStart, endPos=self.pos)

@@ -49,6 +49,17 @@ class RTError(Error):
 
         return 'Traceback (most recent call last):\n' + result
 
+class ExpectedCharError(Error):
+    def __init__(self, startPos, endPos, details):
+        super().__init__(startPos, endPos, 'Expected Character', details)
+
+
+
+
+##################################
+# Decorations
+##################################
+
 
 def stringWithArrows(text, pos_start, pos_end):
     result = ''
